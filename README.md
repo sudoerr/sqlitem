@@ -90,6 +90,6 @@ You can commit all request at the end by setting commit_requests=True. Ensure th
 
 ## Problems and updates
 
-The onsolved problem is exactly here that we can't use generators to lower RAM resource usage.
+The unsolved problem is that we can't use generators to lower RAM resource usage.
 - Add safe close mode
 - Find a way to lower RAM resource usage
