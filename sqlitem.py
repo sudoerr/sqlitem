@@ -14,7 +14,6 @@ Github : https://github.com/slashTony
 """
 import os
 import time
-import socket
 import sqlite3
 import threading
 from traceback import format_exc
