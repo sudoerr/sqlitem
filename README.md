@@ -9,7 +9,12 @@ Sqlite multithreaded version named sqlitem. Sqlitem is a way to use sqlite in mu
 
 When you execute a command in Sqlitem it appends it to a list with an ID and waits for return in a dictionary. It's most simple way to use sqlite in multithreaded mode, Instead it uses more RAM resources. For more information read code...
 
-Note: 8000 commands happend while using insert commands!
+<br />
+
+> 8000 commands/second happened with insert commands!
+
+
+> You can solve high RAM resources usage by executing right commands. For example instead of selecting all users and searching in python try searching with sql commands. This way sqlite can handle it, and if you need to select large amount of data then you still have this problem.
 
 <br />
 <br />
