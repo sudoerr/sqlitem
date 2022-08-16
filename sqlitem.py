@@ -11,6 +11,7 @@ thread in program. Sqlitem solves this problem.
 
 Created By Tony Kulaei - August 7, 2022
 Github : https://github.com/slashTony
+Update : August 16, 2022
 """
 import os
 import time
@@ -59,6 +60,7 @@ class SqliteMultiThreadedHandler:
         self.__auto_commit_counter = None
         self.__auto_commit_in_rest_interval = None
         self.__commit_requests_on_close = False
+        self.__safe_close_mode = False
 
 
     def connect(self, path:str, create_if_not_exists: bool = False, rest_time: float = 0.001):
@@ -80,9 +82,10 @@ class SqliteMultiThreadedHandler:
             if len(self.__request_input_list) > 0:
                 rest_counter = 0
                 item = self.__request_input_list[0]
+                item_id = item["id"]
                 request = item["request"]
                 args = item["args"]
-                item_id = item["id"]
+                gfunc = item["gfunc"]
                 commit = item["commit"]
                 result = []
                 if request == "commit":
@@ -92,7 +95,17 @@ class SqliteMultiThreadedHandler:
                         cursor.execute(request, args)
                         if commit == True:
                             conn.commit()
-                        result = cursor.fetchall()
+
+                        # generator function output
+                        if callable(gfunc) == True:
+                            for row in cursor:
+                                gfunc(row)
+                        elif gfunc == None:
+                            result = cursor.fetchall()
+                        elif callable(gfunc) == False:
+                            raise Exception("given argument as gfunc is not callable")
+
+
                         # checking auto commit per request
                         if (self.__auto_commit_counter != None) and (request_counter >= self.__auto_commit_counter):
                             conn.commit()
@@ -115,30 +128,38 @@ class SqliteMultiThreadedHandler:
                     conn.commit()
                     rest_counter = 0
 
+                if self.__safe_close_mode == True:
+                    self.close(commit_requests=True)
+                    break
+
 
         if self.__commit_requests_on_close == True:
             conn.commit()
         cursor.close()
 
 
-    def execute(self, request:str, args: tuple = tuple(), commit: bool = False):
-        self.__request_id += 1
-        request_id = self.__request_id
-        new_request = {"id" : request_id, "request" : request, "args" : args, "commit" : commit}
-        self.__request_input_list.append(new_request)
-        # getting answer
-        answer = False
-        while answer == False:
-            answer = self.__request_output_dict.get(request_id, False)
-            time.sleep(self.rest_time)
+    def execute(self, request:str, args: tuple = tuple(), gfunc=None, commit: bool = False):
+        if self.__safe_close_mode == False:
+            self.__request_id += 1
+            request_id = self.__request_id
+            new_request = {"id" : request_id, "request" : request, "args" : args, "gfunc" : gfunc, "commit" : commit}
+            self.__request_input_list.append(new_request)
+            # getting answer
+            answer = False
+            while answer == False:
+                answer = self.__request_output_dict.get(request_id, False)
+                time.sleep(self.rest_time)
 
-        self.__request_output_dict.pop(request_id)
-        return SqlitemOutputItem(answer)
-    
+            self.__request_output_dict.pop(request_id)
+            return SqlitemOutputItem(answer)
+        else:
+            raise Exception("Safe close mode is enabled. Adding new commands to execution list is not possible, database will be closed soon.")
+
+
     def commit(self):
         self.__request_id += 1
         request_id = self.__request_id
-        new_request = {"id": request_id, "request": "commit", "args": (), "commit": True}
+        new_request = {"id": request_id, "request": "commit", "args": (), "gfunc" : None, "commit": True}
         self.__request_input_list.append(new_request)
 
     def set_auto_commit_per_time(self, timeout: float = 60.0):
@@ -153,7 +174,7 @@ class SqliteMultiThreadedHandler:
             time.sleep(1)
 
 
-    def set_auto_commit_by_request(self, interval: int or None = 100):
+    def set_auto_commit_by_request(self, interval: int or None = 10):
         self.__auto_commit_counter = interval
 
     def set_auto_commit_in_rest(self, timeout: float or None = 10.0):
@@ -162,3 +183,12 @@ class SqliteMultiThreadedHandler:
     def close(self, commit_requests: bool = False):
         self.__commit_requests_on_close = commit_requests
         self.__keep_running = False
+
+    def safe_close(self):
+        """
+        Safe close means ignoring any input to list
+        of commands and executing all the list and
+        then closing database safely with commit at
+        the end.
+        """
+        self.__safe_close_mode = True
