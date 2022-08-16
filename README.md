@@ -1,5 +1,5 @@
 # sqlitem
-Sqlite multithreaded version named sqlitem. Sqlitem is a way to use sqlite in multithreaded mode which allows you to execute multiple command from any thread you want. I love using sqlite in my programs because of its simplicity, and I decided to make Sqlitem to use it in my new project. One of most simple ways to use sqlite in any thread is to connect and close inside fo thread. But that's boring!
+Sqlite multithreaded version named sqlitem. Sqlitem is a way to use sqlite in multithreaded mode which allows you to execute multiple command from any thread you want. I love using sqlite in my projects because of its simplicity, and I decided to make Sqlitem to use it in my new project. One of most simple ways to use sqlite in any thread is to connect and close inside fo thread. But that's boring! 😑
 
 
 ## What can Sqlitem do :
