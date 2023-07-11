@@ -11,33 +11,32 @@ thread in program. Sqlitem solves this problem.
 
 Created By Tony Kulaei - August 7, 2022
 Github : https://github.com/slashTony
-Update : August 16, 2022
+Update : July 11, 2023
 """
 import os
 import time
 import sqlite3
 import threading
 from traceback import format_exc
+import traceback
 
 
-class SqlitemOutputItem(object):
-    def __init__(self, mainlist=None):
-        super(SqlitemOutputItem, self).__init__()
-        self.output_list = []
-        if mainlist != None and type(mainlist) == list:
-            self.output_list = mainlist
+class FetchMode:
+    class FetchOne:
+        def __str__(self):
+            return "FetchMode.FetchOne"
 
-    def fetchone(self):
-        if len(self.output_list) > 0:
-            return self.output_list[0]
-        else:
-            return None
-    def fetchall(self):
-        return self.output_list
-    def fetchmany(self, size):
-        return self.output_list[:size]
-    def __str__(self):
-        return f"{self.output_list}"
+    class FetchAll:
+        def __str__(self):
+            return "FetchMode.FetchAll"
+
+    class FetchMany:
+        def __init__(self, size):
+            self.__size = size
+        def size(self):
+            return self.__size
+        def __str__(self):
+            return "FetchMode.FetchMany"
 
 
 
@@ -67,7 +66,7 @@ class SqliteMultiThreadedHandler:
         self.rest_time = rest_time
         if create_if_not_exists:
             dir_path = "/".join(path.split("/")[:-1])
-            os.makedirs(dir_path)
+            os.makedirs(dir_path, exist_ok=True)
             
         exec_thread = threading.Thread(target=self.__exec, args=(path, rest_time))
         exec_thread.start()
@@ -87,6 +86,7 @@ class SqliteMultiThreadedHandler:
                 args = item["args"]
                 gfunc = item["gfunc"]
                 commit = item["commit"]
+                fetchmode = item["fetchmode"]
                 result = []
                 if request == "commit":
                     conn.commit()
@@ -101,7 +101,20 @@ class SqliteMultiThreadedHandler:
                             for row in cursor:
                                 gfunc(row)
                         elif gfunc == None:
-                            result = cursor.fetchall()
+                            try:
+                                if fetchmode == None:
+                                    pass
+                                elif fetchmode().__str__() == "FetchMode.FetchAll":
+                                    result = cursor.fetchall()
+                                elif fetchmode().__str__() == "FetchMode.FetchOne":
+                                    result = cursor.fetchone()
+                                elif fetchmode.__str__() == "FetchMode.FetchMany":
+                                    result = cursor.fetchmany(fetchmode.size())
+                                else:
+                                    raise Exception(f"given fetchmode is unknown : {fetchmode}")
+                            except:
+                                raise Exception(f"given fetchmode is unknown : {fetchmode}")
+
                         elif callable(gfunc) == False:
                             raise Exception("given argument as gfunc is not callable")
 
@@ -138,11 +151,14 @@ class SqliteMultiThreadedHandler:
         cursor.close()
 
 
-    def execute(self, request:str, args: tuple = tuple(), gfunc=None, commit: bool = False):
+    def execute(self, request:str, args: tuple = tuple(), gfunc=None, commit: bool = False,
+                fetchmode=None):
         if self.__safe_close_mode == False:
+
             self.__request_id += 1
             request_id = self.__request_id
-            new_request = {"id" : request_id, "request" : request, "args" : args, "gfunc" : gfunc, "commit" : commit}
+            new_request = {"id" : request_id, "request" : request, "args" : args,
+                           "gfunc" : gfunc, "commit" : commit, "fetchmode" : fetchmode}
             self.__request_input_list.append(new_request)
             # getting answer
             answer = False
@@ -151,7 +167,9 @@ class SqliteMultiThreadedHandler:
                 time.sleep(self.rest_time)
 
             self.__request_output_dict.pop(request_id)
-            return SqlitemOutputItem(answer)
+            if answer == []:
+                return None
+            return answer
         else:
             raise Exception("Safe close mode is enabled. Adding new commands to execution list is not possible, database will be closed soon.")
 
@@ -159,7 +177,7 @@ class SqliteMultiThreadedHandler:
     def commit(self):
         self.__request_id += 1
         request_id = self.__request_id
-        new_request = {"id": request_id, "request": "commit", "args": (), "gfunc" : None, "commit": True}
+        new_request = {"id": request_id, "request": "commit", "args": (), "gfunc" : None, "commit": True, "fetchmode" : None}
         self.__request_input_list.append(new_request)
 
     def set_auto_commit_per_time(self, timeout: float = 60.0):
