@@ -24,7 +24,7 @@ When you execute a command in Sqlitem it appends it to a list with an ID and wai
 ### Import Sqlitem to your project file
 
 ```python
-from sqlitem import SqliteMultiThreadedHandler
+from sqlitem import SqliteMultiThreadedHandler, FetchMode
 ```
 <br />
 
