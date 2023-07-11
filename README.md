@@ -49,8 +49,7 @@ Using auto commits you can make sure there is safety and enough speed to proceed
 - commit after 1 second if there is nothing in list and have get in rest mode
 - commit every minute (60s)
 
-These auto commits made my own life easier...
-
+<s>
 <br />
 
 ### Execute commands
@@ -184,7 +183,7 @@ threading.Thread(target=add_users).start()
 threading.Thread(target=get_user).start()
 threading.Thread(target=get_userssss).start()
 ``` 
-
+</s>
 <br />
 
 ## \> coming soon ^
